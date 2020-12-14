@@ -69,8 +69,9 @@ class ShellActivity : AppCompatActivity() {
             if (keyCode == KeyEvent.KEYCODE_ENTER && event.action == KeyEvent.ACTION_DOWN) {
                 /* Send command and disable input until completion */
                 output.text = null
-                sendCommand(command.text.toString())
                 command.isEnabled = false
+
+                sendCommand(command.text.toString())
 
                 return@setOnKeyListener true
             }
@@ -80,6 +81,11 @@ class ShellActivity : AppCompatActivity() {
     }
 
     private fun sendCommand(thisCommand: String) {
+        if (!session.isConnected) {
+            error(getString(R.string.error_not_connected))
+            return
+        }
+
         Thread {
             /* Open the exec channel */
             (session.openChannel("exec") as ChannelExec).apply {

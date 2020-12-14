@@ -11,4 +11,5 @@
 
     <string name="error_title">Connection failure</string>
     <string name="error_disconnect">Disconnect</string>
+    <string name="error_not_connected">Session is no longer connected.</string>
 </resources>
