@@ -3,6 +3,12 @@
 
     <string name="input_address">Address</string>
     <string name="input_port">Port</string>
+    <string name="input_username">Username</string>
     <string name="input_password">Password</string>
     <string name="button_start">Let\'s go!</string>
+
+    <string name="command_hint">Shell command</string>
+
+    <string name="error_title">Connection failure</string>
+    <string name="error_disconnect">Disconnect</string>
 </resources>
