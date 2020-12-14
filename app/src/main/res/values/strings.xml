@@ -1,3 +1,8 @@
 <resources>
     <string name="app_name">SSH</string>
+
+    <string name="input_address">Address</string>
+    <string name="input_port">Port</string>
+    <string name="input_password">Password</string>
+    <string name="button_start">Let\'s go!</string>
 </resources>
