@@ -5,6 +5,7 @@
     <string name="input_port">Port</string>
     <string name="input_username">Username</string>
     <string name="input_password">Password</string>
+    <string name="button_pubkey">Share RSA public key</string>
     <string name="button_start">Let\'s go!</string>
 
     <string name="command_hint">Shell command</string>

@@ -53,10 +53,13 @@ class ShellActivity : AppCompatActivity() {
         username = intent.getStringExtra("username")!!
         password = intent.getStringExtra("password")!!
 
-        jSch = JSch()
-        session = jSch.getSession(username, address, port)
-        session.setPassword(password)
-        session.setConfig("StrictHostKeyChecking", "no")
+        jSch = JSch().apply {
+            addIdentity("$filesDir/id_rsa")
+        }
+        session = jSch.getSession(username, address, port).apply {
+            setPassword(password)
+            setConfig("StrictHostKeyChecking", "no")
+        }
 
         connect()
 
