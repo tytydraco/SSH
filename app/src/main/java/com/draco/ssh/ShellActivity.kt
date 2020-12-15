@@ -9,11 +9,9 @@ import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textview.MaterialTextView
-import com.jcraft.jsch.ChannelExec
-import com.jcraft.jsch.JSch
-import com.jcraft.jsch.JSchException
-import com.jcraft.jsch.Session
+import com.jcraft.jsch.*
 import java.io.File
+import java.io.PrintStream
 
 class ShellActivity : AppCompatActivity() {
     companion object {
@@ -34,7 +32,9 @@ class ShellActivity : AppCompatActivity() {
 
     private lateinit var jSch: JSch
     private lateinit var session: Session
+    private lateinit var channel: ChannelShell
 
+    private lateinit var printStream: PrintStream
     private lateinit var outputBuffer: File
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -53,6 +53,11 @@ class ShellActivity : AppCompatActivity() {
         username = intent.getStringExtra("username")!!
         password = intent.getStringExtra("password")!!
 
+        /* Store the buffer locally to avoid an OOM error */
+        outputBuffer = File.createTempFile("buffer", "txt").apply {
+            deleteOnExit()
+        }
+
         jSch = JSch().apply {
             addIdentity("$filesDir/id_rsa")
         }
@@ -62,21 +67,11 @@ class ShellActivity : AppCompatActivity() {
             setConfig("StrictHostKeyChecking", "no")
         }
 
-        connect()
-
-        /* Store the buffer locally to avoid an OOM error */
-        outputBuffer = File.createTempFile("buffer", "txt").apply {
-            deleteOnExit()
-        }
+        initializeClient()
 
         command.setOnKeyListener { _, keyCode, event ->
             if (keyCode == KeyEvent.KEYCODE_ENTER && event.action == KeyEvent.ACTION_DOWN) {
-                /* Send command and disable input until completion */
-                output.text = null
-                command.isEnabled = false
-
                 sendCommand(command.text.toString())
-
                 return@setOnKeyListener true
             }
 
@@ -91,49 +86,8 @@ class ShellActivity : AppCompatActivity() {
         }
 
         Thread {
-            /* Open the exec channel */
-            val session = (session.openChannel("exec") as ChannelExec).apply {
-                /* Initialize stream */
-                outputStream = outputBuffer.outputStream()
-                setErrStream(outputBuffer.outputStream())
-                setCommand(thisCommand)
-            }
-
-            /* Start the progress bar */
-            runOnUiThread {
-                progress.visibility = View.VISIBLE
-            }
-
-            /* Execute */
-            session.connect(MAX_CONNECTION_TIMEOUT)
-
-            /* Until finished, update the output */
-            while (!session.isClosed) {
-                val out = readEndOfFile(outputBuffer)
-                runOnUiThread {
-                    output.text = out
-                }
-                outputScrollView.post {
-                    outputScrollView.fullScroll(ScrollView.FOCUS_DOWN)
-                }
-                Thread.sleep(OUTPUT_BUFFER_DELAY_MS)
-            }
-
-            /* Finish */
-            session.disconnect()
-
-            /* Hide the progress and update the final output */
-            val out = readEndOfFile(outputBuffer)
-            runOnUiThread {
-                progress.visibility = View.INVISIBLE
-                runOnUiThread {
-                    output.text = out
-                }
-                outputScrollView.post {
-                    outputScrollView.fullScroll(ScrollView.FOCUS_DOWN)
-                }
-                command.isEnabled = true
-            }
+            printStream.println(thisCommand)
+            printStream.flush()
         }.start()
     }
 
@@ -153,10 +107,46 @@ class ShellActivity : AppCompatActivity() {
         return String(out)
     }
 
-    private fun connect() {
+    private fun updateOutputFeed() {
+        val out = readEndOfFile(outputBuffer)
+        val currentText = output.text.toString()
+        if (out != currentText) {
+            runOnUiThread {
+                output.text = out
+                outputScrollView.post {
+                    outputScrollView.fullScroll(ScrollView.FOCUS_DOWN)
+                }
+            }
+        }
+    }
+
+    private fun startOutputFeed() {
+        Thread {
+            while (!channel.isClosed) {
+                updateOutputFeed()
+                Thread.sleep(OUTPUT_BUFFER_DELAY_MS)
+            }
+            updateOutputFeed()
+        }.start()
+    }
+
+    private fun initializeClient() {
         Thread {
             try {
+                /* Connect the session */
                 session.connect(MAX_CONNECTION_TIMEOUT)
+
+                /* Initialize the shell channel */
+                channel = (session.openChannel("shell") as ChannelShell).apply {
+                    outputStream = outputBuffer.outputStream()
+                    printStream = PrintStream(outputStream)
+                }
+
+                /* Connect the shell channel */
+                channel.connect(MAX_CONNECTION_TIMEOUT)
+
+                /* Start updating the output view */
+                startOutputFeed()
                 
                 /* Unlock UI */
                 runOnUiThread {
