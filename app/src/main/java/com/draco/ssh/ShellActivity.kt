@@ -56,6 +56,7 @@ class ShellActivity : AppCompatActivity() {
         jSch = JSch().apply {
             addIdentity("$filesDir/id_rsa")
         }
+
         session = jSch.getSession(username, address, port).apply {
             setPassword(password)
             setConfig("StrictHostKeyChecking", "no")
@@ -91,35 +92,35 @@ class ShellActivity : AppCompatActivity() {
 
         Thread {
             /* Open the exec channel */
-            (session.openChannel("exec") as ChannelExec).apply {
+            val session = (session.openChannel("exec") as ChannelExec).apply {
                 /* Initialize stream */
                 outputStream = outputBuffer.outputStream()
                 setErrStream(outputBuffer.outputStream())
                 setCommand(thisCommand)
-
-                /* Start the progress bar */
-                runOnUiThread {
-                    progress.visibility = View.VISIBLE
-                }
-
-                /* Execute */
-                connect(MAX_CONNECTION_TIMEOUT)
-
-                /* Until finished, update the output */
-                while (!isClosed) {
-                    val out = readEndOfFile(outputBuffer)
-                    runOnUiThread {
-                        output.text = out
-                    }
-                    outputScrollView.post {
-                        outputScrollView.fullScroll(ScrollView.FOCUS_DOWN)
-                    }
-                    Thread.sleep(OUTPUT_BUFFER_DELAY_MS)
-                }
-
-                /* Finish */
-                disconnect()
             }
+
+            /* Start the progress bar */
+            runOnUiThread {
+                progress.visibility = View.VISIBLE
+            }
+
+            /* Execute */
+            session.connect(MAX_CONNECTION_TIMEOUT)
+
+            /* Until finished, update the output */
+            while (!session.isClosed) {
+                val out = readEndOfFile(outputBuffer)
+                runOnUiThread {
+                    output.text = out
+                }
+                outputScrollView.post {
+                    outputScrollView.fullScroll(ScrollView.FOCUS_DOWN)
+                }
+                Thread.sleep(OUTPUT_BUFFER_DELAY_MS)
+            }
+
+            /* Finish */
+            session.disconnect()
 
             /* Hide the progress and update the final output */
             val out = readEndOfFile(outputBuffer)
