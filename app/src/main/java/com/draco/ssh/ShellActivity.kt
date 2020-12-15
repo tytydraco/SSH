@@ -174,8 +174,10 @@ class ShellActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
-        channel.disconnect()
-        session.disconnect()
+        if (this::channel.isInitialized)
+            channel.disconnect()
+        if (this::session.isInitialized)
+            session.disconnect()
         super.onDestroy()
     }
 }
