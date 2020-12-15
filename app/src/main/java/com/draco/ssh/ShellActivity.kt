@@ -174,6 +174,7 @@ class ShellActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        channel.disconnect()
         session.disconnect()
         super.onDestroy()
     }
