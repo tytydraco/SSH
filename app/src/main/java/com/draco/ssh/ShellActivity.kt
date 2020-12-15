@@ -6,6 +6,7 @@ import android.view.View
 import android.widget.ProgressBar
 import android.widget.ScrollView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.Lifecycle
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textview.MaterialTextView
@@ -164,6 +165,10 @@ class ShellActivity : AppCompatActivity() {
     }
 
     private fun error(exceptionMessage: String) {
+        /* Do not use the activity if it has been destroyed */
+        if (!lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED))
+            return
+
         MaterialAlertDialogBuilder(this).apply {
             setTitle(R.string.error_title)
             setPositiveButton(R.string.error_disconnect) { _, _ -> finish() }
