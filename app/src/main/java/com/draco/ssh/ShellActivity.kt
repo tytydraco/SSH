@@ -1,13 +1,18 @@
 package com.draco.ssh
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.KeyEvent
+import android.view.Menu
+import android.view.MenuItem
 import android.view.View
 import android.widget.ProgressBar
 import android.widget.ScrollView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.FileProvider
 import androidx.lifecycle.Lifecycle
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textview.MaterialTextView
 import com.jcraft.jsch.*
@@ -35,8 +40,7 @@ class ShellActivity : AppCompatActivity() {
     private lateinit var session: Session
     private lateinit var channel: ChannelShell
 
-    private lateinit var printStream: PrintStream
-    private lateinit var outputBuffer: File
+    private lateinit var outputBufferFile: File
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -55,7 +59,7 @@ class ShellActivity : AppCompatActivity() {
         password = intent.getStringExtra("password")!!
 
         /* Store the buffer locally to avoid an OOM error */
-        outputBuffer = File.createTempFile("buffer", "txt").apply {
+        outputBufferFile = File.createTempFile("buffer", ".txt").apply {
             deleteOnExit()
         }
 
@@ -87,8 +91,10 @@ class ShellActivity : AppCompatActivity() {
         }
 
         Thread {
-            printStream.println(thisCommand)
-            printStream.flush()
+            PrintStream(channel.outputStream).apply {
+                println(thisCommand)
+                flush()
+            }
         }.start()
     }
 
@@ -109,7 +115,7 @@ class ShellActivity : AppCompatActivity() {
     }
 
     private fun updateOutputFeed() {
-        val out = readEndOfFile(outputBuffer)
+        val out = readEndOfFile(outputBufferFile)
         val currentText = output.text.toString()
         if (out != currentText) {
             runOnUiThread {
@@ -139,8 +145,7 @@ class ShellActivity : AppCompatActivity() {
 
                 /* Initialize the shell channel */
                 channel = (session.openChannel("shell") as ChannelShell).apply {
-                    outputStream = outputBuffer.outputStream()
-                    printStream = PrintStream(outputStream)
+                    outputStream = outputBufferFile.outputStream()
                 }
 
                 /* Connect the shell channel */
@@ -184,5 +189,35 @@ class ShellActivity : AppCompatActivity() {
         if (this::session.isInitialized)
             session.disconnect()
         super.onDestroy()
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.share -> {
+                try {
+                    val uri = FileProvider.getUriForFile(this, BuildConfig.APPLICATION_ID + ".provider", outputBufferFile)
+                    val intent = Intent(Intent.ACTION_SEND)
+                    with (intent) {
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        putExtra(Intent.EXTRA_STREAM, uri)
+                        type = "file/*"
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    }
+                    startActivity(intent)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    Snackbar.make(output, getString(R.string.snackbar_intent_failed), Snackbar.LENGTH_SHORT)
+                        .setAction(getString(R.string.dismiss)) {}
+                        .show()
+            }
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+        menuInflater.inflate(R.menu.shell, menu)
+        return super.onCreateOptionsMenu(menu)
     }
 }

@@ -1,6 +1,8 @@
 <resources>
     <string name="app_name">SSH</string>
 
+    <string name="share">Share</string>
+
     <string name="input_address">Address</string>
     <string name="input_port">Port</string>
     <string name="input_username">Username</string>
@@ -13,4 +15,7 @@
     <string name="error_title">Connection failure</string>
     <string name="error_disconnect">Disconnect</string>
     <string name="error_not_connected">Session is no longer connected.</string>
+
+    <string name="snackbar_intent_failed">Failed to share log</string>
+    <string name="dismiss">Dismiss</string>
 </resources>
