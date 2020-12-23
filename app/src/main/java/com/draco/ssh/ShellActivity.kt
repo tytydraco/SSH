@@ -76,7 +76,10 @@ class ShellActivity : AppCompatActivity() {
 
         command.setOnKeyListener { _, keyCode, event ->
             if (keyCode == KeyEvent.KEYCODE_ENTER && event.action == KeyEvent.ACTION_DOWN) {
-                sendCommand(command.text.toString())
+                val text = command.text.toString()
+                command.text = null
+                sendCommand(text)
+
                 return@setOnKeyListener true
             }
 
