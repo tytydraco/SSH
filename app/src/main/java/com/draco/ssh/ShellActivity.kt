@@ -11,11 +11,13 @@ import android.widget.ScrollView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textview.MaterialTextView
 import com.jcraft.jsch.*
+import kotlinx.coroutines.*
 import java.io.File
 import java.io.PrintStream
 
@@ -41,6 +43,9 @@ class ShellActivity : AppCompatActivity() {
     private lateinit var channel: ChannelShell
 
     private lateinit var outputBufferFile: File
+
+    private lateinit var initJob: Job
+    private lateinit var outputThreadJob: Job
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -93,12 +98,12 @@ class ShellActivity : AppCompatActivity() {
             return
         }
 
-        Thread {
+        lifecycleScope.launch(Dispatchers.IO) {
             PrintStream(channel.outputStream).apply {
                 println(thisCommand)
                 flush()
             }
-        }.start()
+        }
     }
 
     private fun readEndOfFile(file: File): String {
@@ -131,17 +136,17 @@ class ShellActivity : AppCompatActivity() {
     }
 
     private fun startOutputFeed() {
-        Thread {
-            while (!channel.isClosed) {
+        outputThreadJob = lifecycleScope.launch(Dispatchers.IO) {
+            while (!channel.isClosed && isActive) {
                 updateOutputFeed()
                 Thread.sleep(OUTPUT_BUFFER_DELAY_MS)
             }
             updateOutputFeed()
-        }.start()
+        }
     }
 
     private fun initializeClient() {
-        Thread {
+        initJob = lifecycleScope.launch(Dispatchers.IO) {
             try {
                 /* Connect the session */
                 session.connect(MAX_CONNECTION_TIMEOUT)
@@ -158,6 +163,7 @@ class ShellActivity : AppCompatActivity() {
                 startOutputFeed()
                 
                 /* Unlock UI */
+                ensureActive()
                 runOnUiThread {
                     progress.visibility = View.INVISIBLE
                     command.isEnabled = true
@@ -165,18 +171,15 @@ class ShellActivity : AppCompatActivity() {
             } catch (e: JSchException) {
                 e.printStackTrace()
 
+                ensureActive()
                 runOnUiThread {
                     error(e.message!!)
                 }
             }
-        }.start()
+        }
     }
 
     private fun error(exceptionMessage: String) {
-        /* Do not use the activity if it has been destroyed */
-        if (!lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED))
-            return
-
         MaterialAlertDialogBuilder(this).apply {
             setTitle(R.string.error_title)
             setPositiveButton(R.string.error_disconnect) { _, _ -> finish() }
@@ -191,6 +194,10 @@ class ShellActivity : AppCompatActivity() {
             channel.disconnect()
         if (this::session.isInitialized)
             session.disconnect()
+        if (this::initJob.isInitialized)
+            initJob.cancel()
+        if (this::outputThreadJob.isInitialized)
+            outputThreadJob.cancel()
         super.onDestroy()
     }
 
