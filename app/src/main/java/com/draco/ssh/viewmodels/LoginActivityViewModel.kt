@@ -9,11 +9,7 @@ import java.io.File
 class LoginActivityViewModel(application: Application) : AndroidViewModel(application) {
     private val context = getApplication<Application>().applicationContext
 
-    init {
-        prepareKeys()
-    }
-
-    private fun prepareKeys() {
+    fun prepareKeys() {
         if (File("${context.filesDir}/id_rsa").exists() &&
             File("${context.filesDir}/id_rsa.pub").exists())
             return

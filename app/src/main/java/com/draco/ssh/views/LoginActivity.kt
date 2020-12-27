@@ -3,6 +3,7 @@ package com.draco.ssh.views
 import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Bundle
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModelProvider
@@ -17,6 +18,8 @@ import com.google.android.material.textfield.TextInputEditText
 import java.io.File
 
 class LoginActivity : AppCompatActivity() {
+    private val viewModel: LoginActivityViewModel by viewModels()
+
     private lateinit var address: TextInputEditText
     private lateinit var port: TextInputEditText
     private lateinit var username: TextInputEditText
@@ -29,8 +32,6 @@ class LoginActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_login)
-
-        ViewModelProvider(this).get(LoginActivityViewModel::class.java)
 
         address = findViewById(R.id.address)
         port = findViewById(R.id.port)
@@ -51,7 +52,9 @@ class LoginActivity : AppCompatActivity() {
             EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
         )
 
-        encryptedSharedPrefs.apply {
+        viewModel.prepareKeys()
+
+        with(encryptedSharedPrefs) {
             address.setText(getString("address", "192.168.0.1"))
             port.setText(getString("port", "22"))
             username.setText(getString("username", "root"))
@@ -90,14 +93,12 @@ class LoginActivity : AppCompatActivity() {
 
     override fun onPause() {
         super.onPause()
-        encryptedSharedPrefs.apply {
-            with(edit()) {
-                putString("address", address.text.toString())
-                putString("port", port.text.toString())
-                putString("username", username.text.toString())
-                putString("password", password.text.toString())
-                apply()
-            }
+        with(encryptedSharedPrefs.edit()) {
+            putString("address", address.text.toString())
+            putString("port", port.text.toString())
+            putString("username", username.text.toString())
+            putString("password", password.text.toString())
+            apply()
         }
     }
 }
