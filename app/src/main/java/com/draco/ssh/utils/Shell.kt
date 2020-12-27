@@ -15,11 +15,7 @@ import java.io.File
 import java.io.PrintStream
 
 class Shell(
-    private val context: Context,
-    username: String,
-    address: String,
-    port: Int,
-    private val password: String
+    private val context: Context
 ) {
     companion object {
         const val MAX_CONNECTION_TIMEOUT = 60 * 1000
@@ -30,6 +26,7 @@ class Shell(
     private val ready = MutableLiveData<Boolean>()
     fun getReady(): LiveData<Boolean> = ready
 
+    /* Single event send when error occurs */
     val error = SingleLiveEvent<String>()
 
     val outputBufferFile: File = File.createTempFile("buffer", ".txt").also {
@@ -40,15 +37,21 @@ class Shell(
         it.addIdentity("${context.filesDir}/id_rsa")
     }
 
-    val session: Session = jSch.getSession(username, address, port).also {
-        it.setPassword(password)
-        it.setConfig("StrictHostKeyChecking", "no")
-    }
-
+    lateinit var session: Session
     private lateinit var channel: ChannelShell
 
-    fun initializeClient(): Boolean {
+    fun initializeClient(
+        username: String,
+        address: String,
+        port: Int,
+        password: String
+    ): Boolean {
         try {
+            session = jSch.getSession(username, address, port).also {
+                it.setPassword(password)
+                it.setConfig("StrictHostKeyChecking", "no")
+            }
+
             /* Connect the session */
             session.connect(MAX_CONNECTION_TIMEOUT)
 
@@ -83,12 +86,5 @@ class Shell(
                 flush()
             }
         }
-    }
-
-    fun destroy() {
-        if (this::channel.isInitialized)
-            channel.disconnect()
-        session.disconnect()
-        outputBufferFile.delete()
     }
 }

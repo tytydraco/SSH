@@ -12,6 +12,7 @@ import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
+import androidx.lifecycle.lifecycleScope
 import com.draco.ssh.BuildConfig
 import com.draco.ssh.R
 import com.draco.ssh.utils.Shell
@@ -25,22 +26,20 @@ import kotlinx.coroutines.*
 
 class ShellActivity : AppCompatActivity() {
     private val viewModel: ShellActivityViewModel by viewModels()
+    private lateinit var shell: Shell
 
     private lateinit var progress: ProgressBar
     private lateinit var command: TextInputEditText
     private lateinit var output: MaterialTextView
     private lateinit var outputScrollView: ScrollView
 
-    private lateinit var address: String
-    private var port = 22
-    private lateinit var username: String
-    private lateinit var password: String
-
     private lateinit var errorDialog: AlertDialog
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_shell)
+
+        shell = Shell(this)
 
         progress = findViewById(R.id.progress)
         command = findViewById(R.id.command)
@@ -53,44 +52,47 @@ class ShellActivity : AppCompatActivity() {
             .setCancelable(false)
             .create()
 
-        address = intent.getStringExtra("address")!!
-        try {
-            port = Integer.parseInt(intent.getStringExtra("port")!!)
-        } catch (_: Exception) { }
-        username = intent.getStringExtra("username")!!
-        password = intent.getStringExtra("password")!!
-
-        viewModel.setShell(Shell(this, username, address, port, password))
-        viewModel.startOutputFeed()
-        viewModel.initializeClient()
-        viewModel.getShell().value!!.getReady().observe(this) {
-            if (it == true) {
-                runOnUiThread {
-                    progress.visibility = View.INVISIBLE
-                    command.isEnabled = true
-                }
-            }
-        }
-
-        viewModel.getShell().value!!.error.observe(this) {
-            error(it)
-        }
-
-        viewModel.getOutputText().observe(this) {
-            output.text = it
-        }
-
         command.setOnKeyListener { _, keyCode, event ->
             if (keyCode == KeyEvent.KEYCODE_ENTER && event.action == KeyEvent.ACTION_DOWN) {
                 val text = command.text.toString()
                 command.text = null
-                viewModel.getShell().value!!.send(text)
+                shell.send(text)
 
                 return@setOnKeyListener true
             }
 
             return@setOnKeyListener false
         }
+
+        setupShell()
+    }
+
+    private fun setupShell() {
+        val address = intent.getStringExtra("address")!!
+        val port = try {
+            Integer.parseInt(intent.getStringExtra("port")!!)
+        } catch (_: Exception) { 22 }
+        val username = intent.getStringExtra("username")!!
+        val password = intent.getStringExtra("password")!!
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            shell.initializeClient(username, address, port, password)
+
+            while (isActive && shell.session.isConnected) {
+                viewModel.updateOutputText(shell.outputBufferFile)
+                Thread.sleep(Shell.OUTPUT_BUFFER_DELAY_MS)
+            }
+        }
+
+        shell.getReady().observe(this) {
+            if (it == true) {
+                progress.visibility = View.INVISIBLE
+                command.isEnabled = true
+            }
+        }
+
+        shell.error.observe(this) { error(it) }
+        viewModel.getOutputText().observe(this) { output.text = it }
     }
 
     private fun error(exceptionMessage: String) {
@@ -101,7 +103,6 @@ class ShellActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
-        viewModel.getShell().value!!.destroy()
         errorDialog.dismiss()
         super.onDestroy()
     }
@@ -113,7 +114,7 @@ class ShellActivity : AppCompatActivity() {
                     val uri = FileProvider.getUriForFile(
                         this,
                         BuildConfig.APPLICATION_ID + ".provider",
-                        viewModel.getShell().value!!.outputBufferFile
+                        shell.outputBufferFile
                     )
                     val intent = Intent(Intent.ACTION_SEND)
                     with (intent) {
