@@ -1,16 +1,41 @@
 package com.draco.ssh.viewmodels
 
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.*
 import com.draco.ssh.utils.Shell
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import java.io.File
 
-class ShellActivityViewModel : ViewModel() {
+class ShellActivityViewModel(application: Application) : AndroidViewModel(application) {
+    private val context = getApplication<Application>().applicationContext
+
+    val shell = Shell(context)
+
     private val outputText = MutableLiveData<String>()
     fun getOutputText(): LiveData<String> = outputText
 
-    fun updateOutputText(file: File) {
+    fun connectClientAndStartOutputThread(
+        username: String,
+        address: String,
+        port: Int,
+        password: String
+    ) {
+        if (shell.getReady().value == true)
+            return
+
+        viewModelScope.launch(Dispatchers.IO) {
+            shell.initialize(username, address, port, password)
+
+            while (isActive && shell.session.isConnected) {
+                updateOutputText(shell.outputBufferFile)
+                Thread.sleep(Shell.OUTPUT_BUFFER_DELAY_MS)
+            }
+        }
+    }
+
+    private fun updateOutputText(file: File) {
         val out = readOutputFile(file)
         val currentText = getOutputText().value
         if (out != currentText)

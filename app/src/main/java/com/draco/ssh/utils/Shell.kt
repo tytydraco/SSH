@@ -26,7 +26,6 @@ class Shell(
     private val ready = MutableLiveData<Boolean>()
     fun getReady(): LiveData<Boolean> = ready
 
-    /* Single event send when error occurs */
     val error = SingleLiveEvent<String>()
 
     val outputBufferFile: File = File.createTempFile("buffer", ".txt").also {
@@ -38,9 +37,9 @@ class Shell(
     }
 
     lateinit var session: Session
-    private lateinit var channel: ChannelShell
+    lateinit var channel: ChannelShell
 
-    fun initializeClient(
+    fun initialize(
         username: String,
         address: String,
         port: Int,
@@ -86,5 +85,14 @@ class Shell(
                 flush()
             }
         }
+    }
+
+    fun deinitialize() {
+        if (this::channel.isInitialized)
+            channel.disconnect()
+        if (this::session.isInitialized)
+            session.disconnect()
+        ready.postValue(false)
+        outputBufferFile.delete()
     }
 }

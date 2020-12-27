@@ -12,10 +12,8 @@ import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
-import androidx.lifecycle.lifecycleScope
 import com.draco.ssh.BuildConfig
 import com.draco.ssh.R
-import com.draco.ssh.utils.Shell
 import com.draco.ssh.viewmodels.ShellActivityViewModel
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
@@ -26,7 +24,6 @@ import kotlinx.coroutines.*
 
 class ShellActivity : AppCompatActivity() {
     private val viewModel: ShellActivityViewModel by viewModels()
-    private lateinit var shell: Shell
 
     private lateinit var progress: ProgressBar
     private lateinit var command: TextInputEditText
@@ -38,8 +35,6 @@ class ShellActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_shell)
-
-        shell = Shell(this)
 
         progress = findViewById(R.id.progress)
         command = findViewById(R.id.command)
@@ -56,7 +51,7 @@ class ShellActivity : AppCompatActivity() {
             if (keyCode == KeyEvent.KEYCODE_ENTER && event.action == KeyEvent.ACTION_DOWN) {
                 val text = command.text.toString()
                 command.text = null
-                shell.send(text)
+                viewModel.shell.send(text)
 
                 return@setOnKeyListener true
             }
@@ -75,23 +70,15 @@ class ShellActivity : AppCompatActivity() {
         val username = intent.getStringExtra("username")!!
         val password = intent.getStringExtra("password")!!
 
-        lifecycleScope.launch(Dispatchers.IO) {
-            shell.initializeClient(username, address, port, password)
-
-            while (isActive && shell.session.isConnected) {
-                viewModel.updateOutputText(shell.outputBufferFile)
-                Thread.sleep(Shell.OUTPUT_BUFFER_DELAY_MS)
-            }
-        }
-
-        shell.getReady().observe(this) {
+        viewModel.connectClientAndStartOutputThread(username, address, port, password)
+        viewModel.shell.getReady().observe(this) {
             if (it == true) {
                 progress.visibility = View.INVISIBLE
                 command.isEnabled = true
             }
         }
 
-        shell.error.observe(this) { error(it) }
+        viewModel.shell.error.observe(this) { error(it) }
         viewModel.getOutputText().observe(this) { output.text = it }
     }
 
@@ -100,6 +87,11 @@ class ShellActivity : AppCompatActivity() {
             setMessage(exceptionMessage)
             show()
         }
+    }
+
+    override fun onBackPressed() {
+        viewModel.shell.deinitialize()
+        super.onBackPressed()
     }
 
     override fun onDestroy() {
@@ -114,7 +106,7 @@ class ShellActivity : AppCompatActivity() {
                     val uri = FileProvider.getUriForFile(
                         this,
                         BuildConfig.APPLICATION_ID + ".provider",
-                        shell.outputBufferFile
+                        viewModel.shell.outputBufferFile
                     )
                     val intent = Intent(Intent.ACTION_SEND)
                     with (intent) {
