@@ -19,7 +19,7 @@ class Shell(
 ) {
     companion object {
         const val MAX_CONNECTION_TIMEOUT = 60 * 1000
-        const val MAX_OUTPUT_BUFFER_SIZE = 1024 * 4
+        const val MAX_OUTPUT_BUFFER_SIZE = 1024 * 8
         const val OUTPUT_BUFFER_DELAY_MS = 100L
     }
 
