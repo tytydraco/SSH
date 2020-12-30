@@ -11,8 +11,8 @@ android {
         applicationId "com.draco.ssh"
         minSdkVersion 21
         targetSdkVersion 30
-        versionCode 7
-        versionName "1.0.6"
+        versionCode 8
+        versionName "1.0.7"
     }
 
     buildTypes {
