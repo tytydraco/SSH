@@ -9,9 +9,7 @@ import kotlinx.coroutines.launch
 import java.io.File
 
 class ShellActivityViewModel(application: Application) : AndroidViewModel(application) {
-    private val context = getApplication<Application>().applicationContext
-
-    val shell = Shell(context)
+    val shell = Shell(application.applicationContext)
 
     private val outputText = MutableLiveData<String>()
     fun getOutputText(): LiveData<String> = outputText

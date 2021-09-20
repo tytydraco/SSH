@@ -1,8 +1,8 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <style name="Theme.SSH" parent="Theme.MaterialComponents.DayNight.DarkActionBar">
         <item name="colorPrimary">@color/primary</item>
         <item name="colorSecondary">@color/primary</item>
-        <item name="android:statusBarColor">?colorPrimary</item>
-        <item name="android:navigationBarColor">?colorSurface</item>
+        <item name="android:statusBarColor" tools:targetApi="lollipop">?colorPrimary</item>
+        <item name="android:navigationBarColor" tools:targetApi="lollipop">?colorSurface</item>
     </style>
 </resources>

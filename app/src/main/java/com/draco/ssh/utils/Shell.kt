@@ -37,7 +37,7 @@ class Shell(
     }
 
     lateinit var session: Session
-    lateinit var channel: ChannelShell
+    private lateinit var channel: ChannelShell
 
     fun initialize(
         username: String,

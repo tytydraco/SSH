@@ -7,9 +7,9 @@ import com.jcraft.jsch.KeyPair
 import java.io.File
 
 class LoginActivityViewModel(application: Application) : AndroidViewModel(application) {
-    private val context = getApplication<Application>().applicationContext
-
     fun prepareKeys() {
+        val context = getApplication<Application>().applicationContext
+
         if (File("${context.filesDir}/id_rsa").exists() &&
             File("${context.filesDir}/id_rsa.pub").exists())
             return
