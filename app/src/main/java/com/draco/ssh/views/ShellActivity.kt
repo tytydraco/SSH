@@ -121,14 +121,14 @@ class ShellActivity : AppCompatActivity() {
                     Snackbar.make(output, getString(R.string.snackbar_intent_failed), Snackbar.LENGTH_SHORT)
                         .setAction(getString(R.string.dismiss)) {}
                         .show()
-            }
+                }
                 true
             }
             else -> super.onOptionsItemSelected(item)
         }
     }
 
-    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.shell, menu)
         return super.onCreateOptionsMenu(menu)
     }
